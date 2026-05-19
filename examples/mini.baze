@@ -1,0 +1,13 @@
+-- A counter using app.mini (init / update / view).
+-- The simplest possible Baze app.
+
+Action = inc | dec
+app.mini
+  init = 0
+  update = m a -> a ?
+    inc -> m + 1
+    dec -> m - 1
+  view = m -> row [fullCenter, g 24]
+    - btn [] "-" dec
+    - txt [fs 64, fw.bold] (toText m)
+    - btn [] "+" inc
