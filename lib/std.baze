@@ -1,0 +1,793 @@
+-- BASICS --
+toText : Num -> Text = ffi"a=>typeof a=='string'?a:JSON.stringify(a,null,2)"
+
+(+ 6) : Num, Num -> Num = ffi"(a,b)=>a+b"
+(- 6) : Num, Num -> Num = ffi"(a,b)=>a-b"
+(* 7) : Num, Num -> Num = ffi"(a,b)=>a*b"
+(/ 7) : Num, Num -> Num = ffi"(a,b)=>a/b"
+(** 8) : Num, Num -> Num = ffi"(a,b)=>Math.pow(a,b)"
+
+sqrt : Num -> Num = ffi"Math.sqrt"
+clamp : Num, Num, Num -> Num = ffi"(min,max,v)=>Math.min(Math.max(v,min),max)"
+mod : Num, Num -> Num = ffi"(a,b)=>a%b"
+max : Num, Num -> Num = ffi"(a,b)=>a>b?a:b"
+min : Num, Num -> Num = ffi"(a,b)=>a<b?a:b"
+
+isNaN : Num -> Bool = ffi"Number.isNaN"
+isInfinite : Num -> Bool = ffi"a=>!Number.isFinite(a)"
+
+not : Bool -> Bool = ffi"a=>!a"
+(&& 3) : Bool, Bool -> Bool = ffi"(a,b)=>a&&b"
+(|| 3) : Bool, Bool -> Bool = ffi"(a,b)=>a||b"
+(== 4) : a, a -> Bool = ffi"(function equal(a,b){
+  if(a===b) return true;
+  if(a && b && typeof a=='object' && typeof b=='object'){
+    if(Array.isArray(a)){
+      if(!Array.isArray(b) || a.length!=b.length) return false;
+      for(let i=0;i<a.length;i++) if(!equal(a[i],b[i])) return false;
+      return true }
+    if('_' in a || '_' in b){
+      if(a._!==b._) return false;
+      for(let k in a) if(k!='_' && !equal(a[k],b[k])) return false;
+      return true }
+    for(let k in a) if(!equal(a[k],b[k])) return false;
+    for(let k in b) if(!(k in a)) return false;
+    return true }
+  return false })"
+(/= 4) : a, a -> Bool = a b -> not (a == b)
+(< 4) : Num, Num -> Bool = ffi"(a,b)=>a<b"
+(> 4) : Num, Num -> Bool = ffi"(a,b)=>a>b"
+(<= 4) : Num, Num -> Bool = ffi"(a,b)=>a<=b"
+(>= 4) : Num, Num -> Bool = ffi"(a,b)=>a>=b"
+
+round : Num -> Num = ffi"Math.round"
+floor : Num -> Num = ffi"Math.floor"
+ceiling : Num -> Num = ffi"Math.ceil"
+truncate : Num -> Num = ffi"Math.trunc"
+
+identity : a -> a = a -> a
+Unit = unit
+
+(|> 1) : a, (a -> b) -> b = ffi"(a,f)=>f(a)"
+(<| 1) : (a -> b), a -> b = ffi"(f,a)=>f(a)"
+(>> 1) : (a -> b), (b -> c) -> a -> c = ffi"(f,g)=>a=>g(f(a))"
+(<< 1) : (b -> c), (a -> b) -> a -> c = ffi"(g,f)=>a=>g(f(a))"
+text =
+  length : Text -> Num = ffi"a=>a.length"
+  reverse : Text -> Text = ffi"a=>a.split('').reverse().join('')"
+  repeat : Num, Text -> Text = ffi"(n,s)=>s.repeat(n)"
+  replace : Text, Text, Text -> Text = ffi"(s,search,replace)=>s.replaceAll(search,replace)"
+  append : Text, Text -> Text = ffi"(a,b)=>a+b"
+  concat : List Text -> Text = ffi"a=>a.join('')"
+  split : Text, Text -> List Text = ffi"(s,sep)=>s.split(sep)"
+  join : List Text, Text -> Text = ffi"(a,sep)=>a.join(sep)"
+  slice : Text, Num, Num -> Text = ffi"(s,start,end)=>s.slice(start,end)"
+  drop : Text, Num -> Text = ffi"(s,n)=>s.slice(n)"
+  take : Text, Num -> Text = ffi"(s,n)=>s.slice(0,n)"
+  toUpper : Text -> Text = ffi"s=>s.toUpperCase()"
+  toLower : Text -> Text = ffi"s=>s.toLowerCase()"
+  textBox : Text -> Text = ffi"s=>s.textBox()"
+  head : Text -> Text = ffi"s=>s.slice(0,1)"
+  tail : Text -> Text = ffi"s=>s.slice(1)"
+  capitalize = a -> "${toUpper (head a)}${tail a}"
+  contain : Text, Text -> Bool = ffi"(s,sub)=>s.includes(sub)"
+Maybe a = just a | nothing
+maybe =
+  withDefault : Maybe a, a -> a = val def -> val ?
+    just _a -> _a
+    nothing -> def
+  map : Maybe a, (a -> b) -> Maybe b = val f -> val ?
+    just _a -> just (f _a)
+    nothing -> nothing
+  map2 : (a, b -> c), Maybe a, Maybe b -> Maybe c = f ma mb -> ma ?
+    just _a -> mb ?
+      just _b -> just (f _a _b)
+      nothing -> nothing
+    nothing -> nothing
+  then : (a -> Maybe b), Maybe a -> Maybe b = f val -> val ?
+    just _a -> f _a
+    nothing -> nothing
+list =
+  map : List a, (a -> b) -> List b = ffi"(a,f)=>a.map(f)"
+  mapIndexed : List a, (a, Num -> b) -> List b = ffi"(a,f)=>a.map((x,i)=>f(x,i))"
+  filter : List a, (a -> Bool) -> List a = ffi"(a,f)=>a.filter(f)"
+  reduce : List a, b, (a, b -> b) -> b = ffi"(a,b,f)=>a.reduce((acc,x)=>f(x,acc),b)"
+  reduceRight : List a, b, (a, b -> b) -> b = ffi"(a,b,f)=>a.reduceRight((acc,x)=>f(x,acc),b)"
+  add : List a, a -> List a = ffi"(a,x)=>[...a,x]"
+  addFirst : List a, a -> List a = ffi"(a,x)=>[x,...a]"
+  append : List a, List a -> List a = ffi"(a,b)=>a.concat(b)"
+  flat : List (List a) -> List a = ffi"a=>a.flat()"
+  tail : List a -> List a = ffi"a=>a.slice(1)"
+  head : List a -> Maybe a = ffi"a=>a.length?{_:0,_1:a[0]}:{_:1,_1:null}"
+  at : List a, Num -> Maybe a = ffi"(a,i)=>i>=0&&i<a.length?{_:0,_1:a[i]}:{_:1,_1:null}"
+  length : List a -> Num = ffi"a=>a.length"
+  reverse : List a -> List a = ffi"a=>[...a].reverse()"
+  slice : List a, Num, Num -> List a = ffi"(a,i,j)=>a.slice(i,j)"
+  drop : List a, Num -> List a = ffi"(a,n)=>a.slice(n)"
+  take : List a, Num -> List a = ffi"(a,n)=>a.slice(0,n)"
+  range : Num, Num -> List Num = ffi"(a,b)=>Array.from({length:b-a},(_,i)=>a+i)"
+Result error value = ok value | err error
+result =
+  withDefault : value, Result error value -> value = def res -> res ?
+    ok _v -> _v
+    err _ -> def
+  map : (value -> newValue), Result error value -> Result error newValue = f res -> res ?
+    ok _v -> ok (f _v)
+    err _e -> err _e
+  mapError : (error -> newError), Result error value -> Result newError value = f res -> res ?
+    ok _v -> ok _v
+    err _e -> err (f _e)
+  then : (value -> Result error newValue), Result error value -> Result error newValue = f res -> res ?
+    ok _v -> f _v
+    err _e -> err _e
+  fromMaybe : Maybe a, err -> Result err a = m e -> m ?
+    just _v -> ok _v
+    nothing -> err e
+Dict k v = dictConstructor
+dict =
+  empty : Dict k v = ffi"new Map()"
+  insert : k, v, Dict k v -> Dict k v = ffi"(k,v,d)=>{const n=new Map(d);n.set(k,v);return n}"
+  remove : k, Dict k v -> Dict k v = ffi"(k,d)=>{const n=new Map(d);n.delete(k);return n}"
+  get : k, Dict k v -> Maybe v = ffi"(k,d,Just,Nothing)=>d.has(k)?Just(d.get(k)):Nothing"
+  member : k, Dict k v -> Bool = ffi"(k,d)=>d.has(k)"
+  size : Dict k v -> Num = ffi"d=>d.size"
+  keys : Dict k v -> List k = ffi"d=>Array.from(d.keys())"
+  values : Dict k v -> List v = ffi"d=>Array.from(d.values())"
+Set a = setConstructor
+set =
+  empty : Set a = ffi"new Set()"
+  insert : a, Set a -> Set a = ffi"(v,s)=>{const n=new Set(s);n.add(v);return n}"
+  remove : a, Set a -> Set a = ffi"(v,s)=>{const n=new Set(s);n.delete(v);return n}"
+  member : a, Set a -> Bool = ffi"(v,s)=>s.has(v)"
+  size : Set a -> Num = ffi"s=>s.size"
+  union : Set a, Set a -> Set a = ffi"(a,b)=>new Set([...a,...b])"
+  intersect : Set a, Set a -> Set a = ffi"(a,b)=>{const n=new Set();for(const x of b)if(a.has(x))n.add(x);return n}"
+  diff : Set a, Set a -> Set a = ffi"(a,b)=>{const n=new Set(a);for(const x of b)n.delete(x);return n}"
+  toList : Set a -> List a = ffi"s=>Array.from(s)"
+  fromList : List a -> Set a = ffi"a=>new Set(a)"
+
+-- HTML --
+Attribute msg =
+  none
+  attr Text Text
+  style Text Text
+  pseudoStyle Text (List (Attribute msg))
+  mediaStyle Text (List (Attribute msg))
+  batch (List (Attribute msg))
+  pop_ (List (Attribute msg))
+  out_ (List (Attribute msg))
+
+Html msg =
+  htmlText Text
+  nodeId Text (List (Attribute msg)) (List (Html msg))
+  node Text (List (Attribute msg)) (List (Html msg))
+
+htmlToText : Html msg -> Text = ffi"
+(function rec(n) {
+  if (!n) return '';
+  if (n._ === 0) return String(n._1);
+  const tag = n._ === 1 ? 'div' : n._1;
+  const props = n._ === 1 ? n._2 : n._2;
+  const kids = n._ === 1 ? n._3 : n._3;
+  const flat = [];
+  const walk = a => { if (!a || a._ === 0) return; if (a._ === 5) a._1.forEach(walk); else flat.push(a) };
+  if (props) props.forEach(walk);
+  const st = flat.filter(a => a._ === 2).map(a => a._1 + ':' + a._2).join(';');
+  const ht = flat.filter(a => a._ === 1).map(a => a._1 + '=' + String.fromCharCode(34) + a._2 + String.fromCharCode(34)).join(' ');
+  const attr = (ht ? ' ' + ht : '') + (st ? ' style=' + String.fromCharCode(34) + st + String.fromCharCode(34) : '');
+  return '<' + tag + attr + '>' + (kids ? kids.map(rec).join('') : '') + '</' + tag + '>'; }) "
+
+black = "#111111"
+gray = "#888888"
+white = "#ffffff"
+pageBg = "#f5f5f5"
+rowBg = "#e8e8e8"
+accent = "#ff8484"
+-- Layout --
+p = a -> style "padding" "${toText a}px"
+pr = a -> style "padding-right" "${toText a}px"
+pl = a -> style "padding-left" "${toText a}px"
+pt = a -> style "padding-top" "${toText a}px"
+pb = a -> style "padding-bottom" "${toText a}px"
+px = a -> batch [pl a, pr a]
+py = a -> batch [pt a, pb a]
+pxy = a b -> batch [px a, py b]
+m = a -> style "margin" "${toText a}px"
+mt = a -> style "margin-top" "${toText a}px"
+mb = a -> style "margin-bottom" "${toText a}px"
+g = a -> style "gap" "${toText a}px"
+grow = a -> style "flex-grow" "${toText a}"
+shrink = a -> style "flex-shrink" "${toText a}"
+vh = a -> style "min-height" "${toText a}px"
+h = a -> style "height" "${toText a}px"
+w = a -> style "width" "${toText a}px"
+wf = style "width" "100%"
+maxw = a -> style "max-width" "${toText a}px"
+maxh = a -> style "max-height" "${toText a}px"
+abs = style "position" "absolute"
+rel = style "position" "relative"
+fix = style "position" "fixed"
+ac = style "align-items" "center"
+as = style "align-items" "start"
+ae = style "align-items" "end"
+astrech = style "align-items" "stretch"
+sst = style "align-self" "stretch"
+jc = style "justify-content" "center"
+js = style "justify-content" "start"
+je = style "justify-content" "end"
+jst = style "justify-content" "stretch"
+jsb = style "justify-content" "space-between"
+oh = style "overflow" "hidden"
+os = style "overflow-y" "scroll"
+
+-- Font --
+ff = a -> style "font-family" a
+fs = a -> style "font-size" "${toText a}px"
+fc = a -> style "color" a
+fac = style "text-align" "center"
+fw =
+  normal = style "font-weight" "400"
+  medium = style "font-weight" "500"
+  semibold = style "font-weight" "600"
+  bold = style "font-weight" "700"
+  bolder = style "font-weight" "900"
+-- Paint --
+o = a -> style "opacity" (toText a)
+b = size color -> style "border" "${toText size}px solid ${color}"
+bt = size color -> style "border-top" "${toText size}px solid ${color}"
+br = size color -> style "border-right" "${toText size}px solid ${color}"
+bb = size color -> style "border-bottom" "${toText size}px solid ${color}"
+bl = size color -> style "border-left" "${toText size}px solid ${color}"
+bNone = style "border" "none"
+r = a -> style "border-radius" "${toText a}px"
+rtl = a -> style "border-top-left-radius" "${toText a}px"
+rtr = a -> style "border-top-right-radius" "${toText a}px"
+rbl = a -> style "border-bottom-left-radius" "${toText a}px"
+rbr = a -> style "border-bottom-right-radius" "${toText a}px"
+bg = a -> style "background-color" a
+bgBlur = a -> style "backdrop-filter" "blur(${toText a}px)"
+
+x = a -> style "translate" "${toText a}px 0"
+y = a -> style "translate" "0 ${toText a}px"
+z = a -> style "z-index" (toText a)
+xy = x y -> style "translate" "${toText x}px ${toText y}px"
+s = a -> style "scale" (toText a)
+sxy = sx sy -> style "scale" "${toText sx} ${toText sy}"
+rot = a -> style "rotate" "${toText a}deg"
+-- Animation --
+ms = a -> style "transition" "${toText a}ms"
+delay = a -> style "transition-delay" "${toText a}ms"
+ease =
+  inOut = style "transition-timing-function" "ease-in-out"
+  in = style "transition-timing-function" "ease-in"
+  out = style "transition-timing-function" "ease-out"
+  linear = style "transition-timing-function" "linear"
+  backIn = style "transition-timing-function" "cubic-bezier(0.68, -0.55, 0.265, 1.55)"
+  backOut = style "transition-timing-function" "cubic-bezier(0.34, 1.56, 0.64, 1)"
+-- `pop`  : entry state — element mounts with these attrs, then transitions
+--          to its natural state (default 400ms).
+-- `out`  : exit state — when removed, element transitions to these attrs
+--          first, then unmounts.
+-- Override the timing by adding `ms X` AFTER (otherwise pop/out overwrite it).
+pop = attrs -> batch [ms 400, willChange, pop_ attrs]
+out = attrs -> batch [ms 400, willChange, out_ attrs]
+
+-- CSS keyframe animations --
+-- Two ways to author the same `@keyframes` CSS, both use `frame n attrs`
+-- as the step — pick the one whose unit reads best for your animation:
+--
+--   spin = keyframes               -- step = elapsed time (ms)
+--     - frame 0    [rot 0]
+--     - frame 1000 [rot 360]
+--
+--   spin = keyframesFps 30         -- step = frame index at N fps
+--     - frame 0  [rot 0]
+--     - frame 30 [rot 360]
+--
+-- Both return the same opaque `Animation` (CSS name + natural duration).
+-- Attach with `play spin` (once), `loop spin` (infinite), or `yoyo spin`
+-- (alternating). The baked duration controls the speed — re-author the
+-- keyframes if you want it different.
+Animation = animation Text Num
+frame = n attrs -> {at=n,attrs=attrs}
+keyframes : List {at:Num,attrs:List (Attribute msg)} -> Animation = ffi"frames=>{
+  const r=globalThis._kfb(frames);return {_:0,_1:r.name,_2:r.max}}"
+keyframesFps : Num, List {at:Num,attrs:List (Attribute msg)} -> Animation = ffi"(fps,frames)=>{
+  const r=globalThis._kfb(frames);return {_:0,_1:r.name,_2:Math.round(r.max/fps*1000)}}"
+animName = a -> a ? animation _n _ -> _n
+animDur = a -> a ? animation _ _d -> _d
+play = a -> style "animation" "${animName a} ${toText (animDur a)}ms both"
+loop = a -> style "animation" "${animName a} ${toText (animDur a)}ms infinite linear"
+yoyo = a -> style "animation" "${animName a} ${toText (animDur a)}ms infinite alternate ease-in-out"
+
+-- Preset animations — durations baked in. Use `play anims.spin`,
+-- `loop anims.spin`, or `yoyo anims.pulse`. To run at a different speed,
+-- author your own keyframes with the duration you want.
+anims =
+  spin = keyframes
+    - frame 0 [rot 0]
+    - frame 1000 [rot 360]
+  pulse = keyframes
+    - frame 0 [s 1]
+    - frame 300 [s 1.08]
+    - frame 600 [s 1]
+  bounce = keyframes
+    - frame 0 [y 0]
+    - frame 240 [y -18]
+    - frame 480 [y 0]
+    - frame 640 [y -6]
+    - frame 800 [y 0]
+  shake = keyframes
+    - frame 0 [x 0]
+    - frame 80 [x -8]
+    - frame 160 [x 8]
+    - frame 240 [x -6]
+    - frame 320 [x 4]
+    - frame 400 [x 0]
+  fadeIn = keyframes
+    - frame 0 [o 0]
+    - frame 400 [o 1]
+  slideUp = keyframes
+    - frame 0 [o 0, y 24]
+    - frame 500 [o 1, y 0]
+  slideDown = keyframes
+    - frame 0 [o 0, y -24]
+    - frame 500 [o 1, y 0]
+  slideLeft = keyframes
+    - frame 0 [o 0, x 40]
+    - frame 500 [o 1, x 0]
+  slideRight = keyframes
+    - frame 0 [o 0, x -40]
+    - frame 500 [o 1, x 0]
+  zoomIn = keyframes
+    - frame 0 [o 0, s 0.85]
+    - frame 500 [o 1, s 1]
+  zoomOut = keyframes
+    - frame 0 [o 0, s 1.15]
+    - frame 500 [o 1, s 1]
+  popIn = keyframes
+    - frame 0 [o 0, s 0.7]
+    - frame 350 [o 1, s 1]
+  blink = keyframes
+    - frame 0 [o 1]
+    - frame 500 [o 0.2]
+    - frame 1000 [o 1]
+
+-- Scroll-driven animations --
+-- Drive a keyframes animation by scroll position instead of time. The
+-- progress 0→100% maps to the scroll range — no timer, no JS, the
+-- compositor does it all. Browsers without `animation-timeline` support
+-- skip the animation entirely (graceful: element stays in its base state).
+--
+--   header [scroll.page shrink]      -- driven by nearest scroller (page-wide)
+--   img    [scroll.view popIn]       -- driven by element's own view position
+--   img    [scroll.fadeUp]           -- entry preset: fade + slide-up on entry
+--
+-- `scroll.view` uses CSS `animation-timeline: view()` — each element has
+-- its own timeline tied to its visibility in the viewport.
+-- `scroll.page` uses `animation-timeline: scroll()` — one global timeline
+-- driven by the nearest scrolling ancestor.
+-- The entry presets (fade*/zoomIn/fadeIn) are `scroll.view + animation-range: entry`.
+-- For a custom range, write `style "animation-range" "entry 0% cover 50%"`.
+scroll =
+  view = a -> batch
+    [ style "animation-name" (animName a)
+    , style "animation-timing-function" "linear"
+    , style "animation-fill-mode" "both"
+    , style "animation-duration" "auto"
+    , style "animation-timeline" "view()" ]
+  page = a -> batch
+    [ style "animation-name" (animName a)
+    , style "animation-timing-function" "linear"
+    , style "animation-fill-mode" "both"
+    , style "animation-duration" "auto"
+    , style "animation-timeline" "scroll()" ]
+  -- Entry presets — element fades+slides into place as it enters the viewport.
+  fadeUp = batch [view anims.slideUp, style "animation-range" "entry"]
+  fadeDown = batch [view anims.slideDown, style "animation-range" "entry"]
+  fadeLeft = batch [view anims.slideLeft, style "animation-range" "entry"]
+  fadeRight = batch [view anims.slideRight, style "animation-range" "entry"]
+  fadeIn = batch [view anims.fadeIn, style "animation-range" "entry"]
+  zoomIn = batch [view anims.zoomIn, style "animation-range" "entry"]
+
+-- Utils --
+pointer = style "cursor" "pointer"
+cond = condition attrs -> condition ?
+  true -> batch attrs
+  false -> none
+willChange = style "will-change" "transform"
+containLayout = style "contain" "layout"
+cursor =
+  pointer = style "cursor" "pointer"
+  default = style "cursor" "default"
+userSelectNone = style "user-select" "none"
+textBox = style "text-box" "trim-both cap alphabetic"
+tb = textBox
+
+attrsRow = batch [style "display" "flex", style "flex-direction" "row", g 8, ac]
+attrsCol = batch [style "display" "flex", style "flex-direction" "column", g 8, ac]
+full = batch [style "display" "flex", ac, style "min-height" "100dvh", ff "ui-monospace, monospace", userSelectNone, bg pageBg, p 16]
+fullCenter = batch [full, jc]
+
+-- Pseudo-classes
+hover = attrs -> mediaStyle "@media (hover: hover)" [pseudoStyle ":hover" attrs]
+focus = attrs -> pseudoStyle ":focus" attrs
+active = attrs -> pseudoStyle ":active" attrs
+
+-- Container Queries --
+-- The runtime auto-marks <body> as `container-name: root`, so top-level
+-- `above` / `below` / `between` query the viewport. Wrap any subtree in
+-- `contained` to make queries inside it local to that subtree.
+contained = style "container-type" "inline-size"
+containedAs = name -> batch [contained, style "container-name" name]
+
+above = n attrs -> mediaStyle "@container (min-width:${toText n}px)" attrs
+below = n attrs -> mediaStyle "@container (max-width:${toText n}px)" attrs
+between = a b attrs -> mediaStyle "@container (min-width:${toText a}px) and (max-width:${toText b}px)" attrs
+
+aboveIn = name n attrs -> mediaStyle "@container ${name} (min-width:${toText n}px)" attrs
+belowIn = name n attrs -> mediaStyle "@container ${name} (max-width:${toText n}px)" attrs
+betweenIn = name a b attrs -> mediaStyle "@container ${name} (min-width:${toText a}px) and (max-width:${toText b}px)" attrs
+
+-- Container-relative units (% of nearest container's inline/block size)
+fsCqi = n -> style "font-size" "${toText n}cqi"
+wCqi = n -> style "width" "${toText n}cqi"
+hCqb = n -> style "height" "${toText n}cqb"
+pCqi = n -> style "padding" "${toText n}cqi"
+gCqi = n -> style "gap" "${toText n}cqi"
+
+-- Html Events --
+onClick = ffi"msg=>({onClick:msg})"
+onPointerDown = ffi"msg=>({onPointerDown:msg})"
+onPointerUp = ffi"msg=>({onPointerUp:msg})"
+onPointerEnter = ffi"msg=>({onPointerEnter:msg})"
+onPointerLeave = ffi"msg=>({onPointerLeave:msg})"
+onInput = ffi"handler=>({onInput:e=>handler(e.target.value||'')})"
+onInputInnerText = ffi"handler=>({onInput:e=>handler(e.target.innerText)})"
+onBlur = ffi"handler=>({onBlur:e=>handler(e.target.innerText)})"
+onSubmit = ffi"handler=>({onSubmit:e=>{e.preventDefault();const data = Object.fromEntries(new FormData(e.target));e.target.reset();return handler(data) } })"
+
+-- Html Elements --
+row = attrs child -> node "div" [attrsRow, batch attrs] child
+col = attrs child -> node "div" [attrsCol, batch attrs] child
+txt = attrs txt_ -> node "div" attrs [htmlText txt_]
+img = attrs src -> node "img" [attr "src" src, batch attrs] []
+video = attrs src -> node "video" [attr "loop" "true", attr "muted" "true", attr "autoplay" "true", attr "src" src, batch attrs] []
+
+rowId = id attrs child -> nodeId id [attrsRow, batch attrs] child
+colId = id attrs child -> nodeId id [attrsCol, batch attrs] child
+txtId = id attrs txt_ -> nodeId id [batch attrs] [htmlText txt_]
+
+btnAttrs = batch
+  [ p 10, bg black, fc white, border.none
+  , ms 200, r 6, cursor.pointer, userSelectNone
+  , hover [bg gray, s 1.02]
+  , active [bg accent, s 0.98] ]
+btn = attrs label msg -> node "button"
+  [btnAttrs, onPointerDown msg, batch attrs]
+  - htmlText label
+form = func attrs child -> node "form" [onSubmit func, attrsCol, batch attrs] child
+submit = attrs name -> node "button" [attr "type" "submit", btnAttrs, batch attrs] [htmlText name]
+name = a -> attr "name" a
+value = a -> attr "value" a
+placeholder = a -> attr "placeholder" a
+input = attrs -> node "input" [border.none, p 10, r 6, attr "autocomplete" "off", batch attrs] []
+popOut = attrs -> batch [ms 400, willChange, containLayout, pop attrs, out attrs]
+
+-- SVG Elements --
+svgNode : Text, List (Attribute msg), List (Html msg) -> Html msg = ffi"(t,a,k)=>({_:2,_1:t,_2:a,_3:k,_ns:'http://www.w3.org/2000/svg'})"
+svg = attrs kids -> svgNode "svg" attrs kids
+svgG = attrs kids -> svgNode "g" attrs kids
+defs = attrs kids -> svgNode "defs" attrs kids
+use = attrs href -> svgNode "use" [attr "href" href, batch attrs] []
+rect = attrs w h -> svgNode "rect" [attr "width" (toText w), attr "height" (toText h), batch attrs] []
+circle = attrs cx cy r -> svgNode "circle" [attr "cx" (toText cx), attr "cy" (toText cy), attr "r" (toText r), batch attrs] []
+ellipse = attrs cx cy rx ry -> svgNode "ellipse" [attr "cx" (toText cx), attr "cy" (toText cy), attr "rx" (toText rx), attr "ry" (toText ry), batch attrs] []
+line = attrs x1 y1 x2 y2 -> svgNode "line" [attr "x1" (toText x1), attr "y1" (toText y1), attr "x2" (toText x2), attr "y2" (toText y2), batch attrs] []
+polygon = attrs pts -> svgNode "polygon" [attr "points" pts, batch attrs] []
+polyline = attrs pts -> svgNode "polyline" [attr "points" pts, batch attrs] []
+path = attrs d -> svgNode "path" [attr "d" d, batch attrs] []
+svgText = attrs s -> svgNode "text" attrs [htmlText s]
+tspan = attrs s -> svgNode "tspan" attrs [htmlText s]
+fill = c -> attr "fill" c
+stroke = c -> attr "stroke" c
+strokeWidth = w -> attr "stroke-width" (toText w)
+strokeLinecap = c -> attr "stroke-linecap" c
+strokeLinejoin = c -> attr "stroke-linejoin" c
+viewBox = v -> attr "viewBox" v
+transform = v -> attr "transform" v
+opacity = v -> attr "opacity" (toText v)
+d = a -> attr "d" a
+
+-- Markdown --
+MdStyle msg =
+  h1 : List (Attribute msg)
+  h2 : List (Attribute msg)
+  h3 : List (Attribute msg)
+  h4 : List (Attribute msg)
+  h5 : List (Attribute msg)
+  h6 : List (Attribute msg)
+  p : List (Attribute msg)
+  blockquote : List (Attribute msg)
+  ul : List (Attribute msg)
+  ol : List (Attribute msg)
+  li : List (Attribute msg)
+  pre : List (Attribute msg)
+  code : List (Attribute msg)
+  a : List (Attribute msg)
+  img : List (Attribute msg)
+  em : List (Attribute msg)
+  strong : List (Attribute msg)
+  hr : List (Attribute msg)
+  br : List (Attribute msg)
+  div : List (Attribute msg)
+
+md =
+  defaultStyle : MdStyle msg =
+    h1 = [fs 32, style "line-height" "1.6", style "margin" "56px 0 0 0", fw.bold, fc "rgba(41, 41, 41, 1)"]
+    h2 = [fs 24, style "line-height" "1.22", style "margin" "40px 0 0 0", fw.semibold, fc "rgba(41, 41, 41, 1)"]
+    h3 = [fs 20, style "line-height" "1.25", style "margin" "32px 0 0 0", fw.semibold, fc "rgba(41, 41, 41, 1)"]
+    h4 = [fs 18, style "line-height" "1.3", style "margin" "24px 0 0 0", fw.semibold, fc "rgba(41, 41, 41, 1)"]
+    h5 = []
+    h6 = []
+    p = [fs 16, style "line-height" "1.6", m 0, mt 29, fc "rgba(41, 41, 41, 1)", fw.normal]
+    blockquote = [bl 3 accent, pl 23, style "margin" "29px 0", style "font-style" "italic", fc "rgba(41, 41, 41, 0.8)"]
+    ul = [style "margin" "8px 0", pl 30]
+    ol = [style "margin" "8px 0", pl 30]
+    li = [style "margin" "4px 0", fs 16, style "line-height" "1.6", fc "rgba(41, 41, 41, 1)"]
+    pre = [bg "rgba(242, 242, 242, 1)", style "padding" "20px", r 6, style "overflow-x" "auto", style "margin" "29px 0"]
+    code = [bg "rgba(242, 242, 242, 1)", style "padding" "2px 4px", r 3, ff "'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace", fs 18]
+    a = [fc "rgba(3, 168, 124, 1)", style "text-decoration" "none"]
+    img = [style "max-width" "100%", style "height" "auto", style "margin" "29px 0", r 6]
+    em = [style "font-style" "italic"]
+    strong = [fw.bold]
+    hr = [style "border" "none", style "border-top" "1px solid rgba(255, 168, 114, 1)", style "margin" "48px 0"]
+    br = []
+    div = []
+  toHtmlStyled : MdStyle msg, Text -> Html msg = ffi"
+((style, src) => {
+  const T = s => ({_:0, _1:s, _2:null, _3:null})
+  const A = (k, v) => ({_:1, _1:k, _2:v})
+  const N = (tag, attrs, kids) => ({_:2, _1:tag, _2:attrs, _3:kids})
+  const safeUrl = u => {
+    const t = (u || ``).trim()
+    if (/^(https?:|mailto:)/i.test(t)) return t
+    if (t[0] === `/` || t[0] === `#` || t.startsWith(`./`) || t.startsWith(`../`)) return t
+    return `#`
+  }
+  const renderInline = (input) => {
+    const out = []
+    const n = input.length
+    let i = 0, buf = ``
+    const flush = () => { if (buf) { out.push(T(buf)); buf = `` } }
+    while (i < n) {
+      const c = input[i]
+      if (c === `\n`) {
+        if (buf.endsWith(`  `)) { buf = buf.replace(/ +$/, ``); flush(); out.push(N(`br`, style.br, [])) }
+        else buf += ` `
+        i++; continue
+      }
+      if (c === `\\` && i+1 < n && /[\\*_{}\[\]()#+\-.!>]/.test(input[i+1])) {
+        buf += input[i+1]; i += 2; continue
+      }
+      if (c === `\``) {
+        const e = input.indexOf(`\``, i+1)
+        if (e > i) { flush(); out.push(N(`code`, style.code, [T(input.slice(i+1, e))])); i = e+1; continue }
+      }
+      if (c === `!` && input[i+1] === `[`) {
+        const m = input.slice(i).match(/^!\[([^\]]*)\]\(([^)]*)\)/)
+        if (m) {
+          flush()
+          out.push(N(`img`, [A(`src`, safeUrl(m[2])), A(`alt`, m[1]), ...style.img], []))
+          i += m[0].length; continue
+        }
+      }
+      if (c === `[`) {
+        let d = 0, j = i, cb = -1
+        for (; j < n; j++) {
+          if (input[j] === `[`) d++
+          else if (input[j] === `]`) { d--; if (!d) { cb = j; break } }
+        }
+        if (cb > i && input[cb+1] === `(`) {
+          let pd = 1, pj = cb + 2
+          for (; pj < n; pj++) {
+            if (input[pj] === `(`) pd++
+            else if (input[pj] === `)`) { pd--; if (!pd) break }
+          }
+          if (pd === 0 && pj < n) {
+            flush()
+            out.push(N(`a`, [A(`href`, safeUrl(input.slice(cb+2, pj))), ...style.a], renderInline(input.slice(i+1, cb))))
+            i = pj+1; continue
+          }
+        }
+      }
+      if ((c === `*` || c === `_`) && input[i+1] === c) {
+        const mk = c+c, e = input.indexOf(mk, i+2)
+        if (e > i+1) {
+          flush()
+          out.push(N(`strong`, style.strong, renderInline(input.slice(i+2, e))))
+          i = e+2; continue
+        }
+      }
+      if (c === `*` || c === `_`) {
+        const e = input.indexOf(c, i+1)
+        if (e > i) {
+          flush()
+          out.push(N(`em`, style.em, renderInline(input.slice(i+1, e))))
+          i = e+1; continue
+        }
+      }
+      buf += c; i++
+    }
+    flush()
+    return out
+  }
+  const isBlock = l => /^#{1,6}\s/.test(l) || /^[-*_]{3,}\s*$/.test(l)
+    || l[0] === `>` || /^\s*([-*+]|\d+\.)\s+/.test(l) || l.startsWith(`\`\`\``)
+  const headStyle = lv => lv === 1 ? style.h1 : lv === 2 ? style.h2 : lv === 3 ? style.h3 : lv === 4 ? style.h4 : lv === 5 ? style.h5 : style.h6
+  const renderBlocks = (txt) => {
+    const lines = txt.replace(/\r\n/g, `\n`).split(`\n`)
+    const out = []
+    let i = 0
+    while (i < lines.length) {
+      const line = lines[i]
+      if (!line.trim()) { i++; continue }
+      const f = line.match(/^```(.*)$/)
+      if (f) {
+        i++
+        const cl = []
+        while (i < lines.length && !lines[i].startsWith(`\`\`\``)) { cl.push(lines[i]); i++ }
+        if (i < lines.length) i++
+        out.push(N(`pre`, style.pre, [N(`code`, style.code, [T(cl.join(`\n`))])]))
+        continue
+      }
+      const h = line.match(/^(#{1,6})\s+(.*)$/)
+      if (h) { out.push(N(`h${h[1].length}`, headStyle(h[1].length), renderInline(h[2]))); i++; continue }
+      if (/^[-*_]{3,}\s*$/.test(line)) { out.push(N(`hr`, style.hr, [])); i++; continue }
+      if (line[0] === `>`) {
+        const ql = []
+        while (i < lines.length && lines[i][0] === `>`) {
+          ql.push(lines[i].replace(/^>\s?/, ``))
+          i++
+        }
+        out.push(N(`blockquote`, style.blockquote, renderBlocks(ql.join(`\n`))))
+        continue
+      }
+      const li = line.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/)
+      if (li) {
+        const ord = /^\d/.test(li[2])
+        const items = []
+        while (i < lines.length) {
+          const m = lines[i].match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/)
+          if (!m) break
+          const isOrd = /^\d/.test(m[2])
+          if (isOrd !== ord) break
+          items.push(N(`li`, style.li, renderInline(m[3])))
+          i++
+        }
+        out.push(N(ord ? `ol` : `ul`, ord ? style.ol : style.ul, items))
+        continue
+      }
+      const pl = []
+      while (i < lines.length && lines[i].trim() && !isBlock(lines[i])) {
+        pl.push(lines[i])
+        i++
+      }
+      out.push(N(`p`, style.p, renderInline(pl.join(`\n`))))
+    }
+    return out
+  }
+  return N(`div`, style.div, renderBlocks(src || ``))
+})"
+  toHtml : Text -> Html msg = src -> toHtmlStyled defaultStyle src
+
+-- CMD & SUB --
+Cmd a = cmdConstructor
+Sub a = subConstructor
+
+html =
+  map : (a -> b), Html a -> Html b = ffi"(function hm(f,n){if(!n||n._===0)return n;if(n._===8){const o=n._2;return{_:8,_1:n._1,_2:{...o,emit:(m,a)=>{const r=o.emit?o.emit(m,a):null;return r&&r._===0?{_:0,_1:f(r._1)}:r}}}}return{_:n._,_1:n._1,_2:n._2?n._2.map(a=>am(f,a)):n._2,_3:n._3?n._3.map(c=>hm(f,c)):n._3,_ns:n._ns}});function am(f,a){if(!a||a._===0||a._===1||a._===2)return a;if(a._===3)return{_:3,_1:a._1,_2:a._2.map(x=>am(f,x))};if(a._===4)return{_:4,_1:a._1,_2:a._2.map(x=>am(f,x))};if(a._===5)return{_:5,_1:a._1.map(x=>am(f,x))};if(a._===6)return{_:6,_1:a._1.map(x=>am(f,x))};if(a._===7)return{_:7,_1:a._1.map(x=>am(f,x))};const r={};for(const k in a)r[k]=k.startsWith('on')?(typeof a[k]==='function'?v=>f(a[k](v)):f(a[k])):a[k];return r}"
+  element : {init:m,update:m, a -> m,view:m -> Html a,cmds:m, a -> Cmd a,subs:m -> Sub a,emit:m, a -> Maybe parentAction} -> Html parentAction = ffi"c=>({_:8,_2:c})"
+  elementId : Text, {init:m,update:m, a -> m,view:m -> Html a,cmds:m, a -> Cmd a,subs:m -> Sub a,emit:m, a -> Maybe parentAction} -> Html parentAction = ffi"(k,c)=>({_:8,_1:k,_2:c})"
+cmd =
+  none : Cmd a = ffi"d=>{}"
+  batch : List (Cmd a) -> Cmd a = ffi"cs=>d=>cs.forEach(c=>c(d))"
+  map : (a -> b), Cmd a -> Cmd b = ffi"(f,c)=>d=>c(m=>d(f(m)))"
+  dispatch : a -> Cmd a = ffi"msg=>d=>d(msg)"
+sub =
+  none : Sub a = ffi"({id:'none',run:d=>()=>{}})"
+  batch : List (Sub a) -> Sub a = ffi"ss=>({_subs:ss})"
+  map : (a -> b), Sub a -> Sub b = ffi"(f,s)=>({id:s.id,run:d=>s.run(m=>d(f(m)))})"
+
+log : a -> a = ffi"a=>(console.log(a),a)"
+
+time =
+  delay : Num, a -> Cmd a = ffi"(ms,msg)=>d=>setTimeout(()=>d(msg),ms)"
+  every : Num, (Num -> a) -> Sub a = ffi"(ms,fn)=>({id:'every'+ms, run:d=>{const i=setInterval(()=>d(fn(Date.now())),ms);return ()=>clearInterval(i)}})"
+
+net =
+  pub : Text, action -> Cmd a = ffi"(c,msg)=>d=>{globalThis.Bun?srv.publish(c,JSON.stringify(msg)):globalThis.ws?.send(JSON.stringify({type:'pub',channel:c,msg}));return d}"
+  sub : Text -> Sub a = ffi"c=>({id:'sub_'+c, run:d=>{let r=1;const s=()=>{if(!r)return;if(globalThis.ws&&globalThis.ws.readyState===1&&!globalThis.ws['_s_'+c]){globalThis.ws.send(JSON.stringify({type:'sub',channel:c}));globalThis.ws['_s_'+c]=1};setTimeout(s,500)};if(!globalThis.Bun)s();return ()=>{r=0;!globalThis.Bun&&globalThis.ws?.readyState===1&&globalThis.ws.send(JSON.stringify({type:'unsub',channel:c}))}}})"
+
+file =
+  read : Text, (Text -> a) -> Cmd a = ffi"(p,m)=>d=>(globalThis.Bun?Bun.file(p).text():navigator.storage.getDirectory().then(r=>r.getFileHandle(p.split('/').join('_'))).then(h=>h.getFile()).then(f=>f.text())).then(t=>d(m(t))).catch(e=>console.error('Baze.file.read',e))"
+  write : Text, Text -> Cmd a = ffi"(p,c)=>d=>(globalThis.Bun?Bun.write(p,c):navigator.storage.getDirectory().then(r=>r.getFileHandle(p.split('/').join('_'),{create:true})).then(h=>h.createWritable()).then(async w=>{await w.write(c);await w.close()})).catch(e=>console.error('Baze.file.write',e))"
+  remove : Text -> Cmd a = ffi"p=>d=>(globalThis.Bun?import('node:fs/promises').then(m=>m.unlink(p)):navigator.storage.getDirectory().then(r=>r.removeEntry(p.split('/').join('_')))).catch(e=>console.error('Baze.file.remove',e))"
+
+User = userGuest {id:Text} | userAuth {id:Text,name:Text,mail:Text}
+front =
+  load : Text -> Cmd a = ffi"p=>d=>{window.location.href=p;return a=>a}"
+  sendToBack : msg -> Cmd a = ffi"msg=>{ws.send(JSON.stringify(msg));return a=>a}"
+  broadcast : msg -> Cmd a = ffi"msg=>{ws.send(JSON.stringify({type:'broadcast',msg}));return a=>a}"
+  sendMagicLink : {name:Text,mail:Text} -> Cmd a = ffi"({name,mail})=>{fetch(`https://auth.vyvants.org/register?mail=${mail}&name=${name}&target=${window.location.href}`);return a=>a}"
+  pushPath : Text -> Cmd a = ffi"p=>{history.pushState(null,'',p);return a=>a}"
+  focusId : Text -> Cmd a = ffi"id=>d=>{requestAnimationFrame(()=>{const el=document.getElementById(id);if(el){const ce=el.querySelector('[contenteditable]');(ce||el).focus()}});return a=>a}"
+  onPathChange : (Text -> msg) -> Sub msg = ffi"handler=>({id:'onPathChange',run:d=>{const f=()=>d(handler(window.location.pathname));window.addEventListener('popstate',f);setTimeout(f,0);return ()=>window.removeEventListener('popstate',f)}})"
+  onResize : ({width:Num,height:Num} -> msg) -> Sub msg = ffi"handler=>({id:'onResize',run:d=>{const f=()=>d(handler({width:window.innerWidth,height:window.innerHeight}));window.addEventListener('resize',f);requestAnimationFrame(f);return ()=>window.removeEventListener('resize',f)}})"
+  onMouseMove : ({x:Num,y:Num} -> msg) -> Sub msg = ffi"handler=>({id:'onMouseMove',run:d=>{const f=e=>d(handler({x:e.clientX,y:e.clientY}));window.addEventListener('mousemove',f);return ()=>window.removeEventListener('mousemove',f)}})"
+  onScroll : ({y:Num,height:Num,viewport:Num,progress:Num} -> msg) -> Sub msg = ffi"handler=>({id:'onScroll',run:d=>{let raf=0;const fire=()=>{raf=0;const y=window.scrollY,h=document.documentElement.scrollHeight,v=window.innerHeight,m=Math.max(1,h-v);d(handler({y,height:h,viewport:v,progress:Math.min(1,Math.max(0,y/m))}))};const f=()=>{if(!raf)raf=requestAnimationFrame(fire)};window.addEventListener('scroll',f,{passive:true});window.addEventListener('resize',f,{passive:true});requestAnimationFrame(fire);return ()=>{window.removeEventListener('scroll',f);window.removeEventListener('resize',f)}}})"
+  scrollTo : Num -> Cmd a = ffi"y=>d=>{window.scrollTo({top:y,behavior:'smooth'});return a=>a}"
+  scrollToId : Text -> Cmd a = ffi"id=>d=>{const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return a=>a}"
+  scrollToTop : Cmd a = ffi"d=>{window.scrollTo({top:0,behavior:'smooth'});return a=>a}"
+  onKey : ({key:Text,code:Text,meta:Bool,alt:Bool,ctrl:Bool,shift:Bool,keys:Set Text} -> Maybe msg) -> Sub msg = ffi"handler=>({id:'onKey',run:d=>{const ks=new Set();const dn=e=>{ks.add(e.code);const m=handler({key:e.key,code:e.code,meta:e.metaKey,alt:e.altKey,ctrl:e.ctrlKey,shift:e.shiftKey,keys:ks});if(m._===0){e.preventDefault();d(m._1)}};const up=e=>ks.delete(e.code);window.addEventListener('keydown',dn);window.addEventListener('keyup',up);return ()=>{window.removeEventListener('keydown',dn);window.removeEventListener('keyup',up)}}})"
+  onKeyNoPreventDefault : ({key:Text,code:Text,meta:Bool,alt:Bool,ctrl:Bool,shift:Bool,keys:Set Text} -> Maybe msg) -> Sub msg = ffi"handler=>({id:'onKeyNoPreventDefault',run:d=>{const ks=new Set();const dn=e=>{ks.add(e.code);const m=handler({key:e.key,code:e.code,meta:e.metaKey,alt:e.altKey,ctrl:e.ctrlKey,shift:e.shiftKey,keys:ks});if(m._===0){d(m._1)}};const up=e=>ks.delete(e.code);window.addEventListener('keydown',dn);window.addEventListener('keyup',up);return ()=>{window.removeEventListener('keydown',dn);window.removeEventListener('keyup',up)}}})"
+  onOffline : (Bool -> msg) -> Sub msg = ffi"handler=>({id:'onOffline',run:d=>{const f=e=>d(handler(e.detail));window.addEventListener('ws-status',f);f({detail:globalThis.ws?.readyState!==1});return ()=>window.removeEventListener('ws-status',f)}})"
+  onInit : ({path:Text,user:User} -> msg) -> Sub msg = ffi"handler=>({
+    id:'onInit',
+    run:d=>{
+      const c=k=>document.cookie.split('; ').find(s=>s.startsWith(k+'='))?.slice(k.length+1)||''
+      const a=c('userAuth'),t=c('token')
+      const u=a?(()=>{try{return{_:1,_1:JSON.parse(decodeURIComponent(a))}}catch(e){return null}})():null
+      d(handler({path:window.location.pathname,user:u||{_:0,_1:{id:t}}}))
+      return ()=>{}}})"
+-- App --
+UserId = userid Text
+TabId = tabId Text
+Sender =
+  guest UserId TabId
+  user UserId TabId
+  server
+back =
+  broadcast : msg -> Cmd a = ffi"msg=>{srv.publish('all:'+_appName,JSON.stringify(msg));return a=>a}"
+  sendToUser : Sender, msg -> Cmd a = ffi"(sender,msg)=>{if(sender._===2)return a=>a;srv.publish('user:'+sender._1._1,JSON.stringify(msg));return a=>a}"
+  sendToTab : Sender, msg -> Cmd a = ffi"(sender,msg)=>{if(sender._===2)return a=>a;srv.publish('tab:'+sender._2._1,JSON.stringify(msg));return a=>a}"
+  onConnect : msg -> Sub msg = ffi"msg=>({id:'onConnect',run:d=>{const f=s=>d(msg,s);_onConnect.push(f);return ()=>{const i=_onConnect.indexOf(f);if(i>=0)_onConnect.splice(i,1)}}})"
+  onDisconnect : msg -> Sub msg = ffi"msg=>({id:'onDisconnect',run:d=>{const f=s=>d(msg,s);_onDisconnect.push(f);return ()=>{const i=_onDisconnect.indexOf(f);if(i>=0)_onDisconnect.splice(i,1)}}})"
+  checkout : Sender, {amount:Num,currency:Text,label:Text,onPaid:a,onFail:a} -> Cmd a = ffi"(sender,opts)=>d=>{
+    if(sender._===2){d(opts.onFail,sender);return}
+    const tabId=sender._2._1
+    const host=_tabHosts.get(tabId)
+    if(!host||!_stripeKey){console.error('back.checkout: missing host or STRIPE key');d(opts.onFail,sender);return}
+    const nonce=crypto.randomUUID()
+    const proto=host.includes('localhost')?'http':'https'
+    const origin=proto+'://'+host
+    const body=new URLSearchParams({
+      mode:'payment',
+      success_url:origin+'/_pay/done?nonce='+nonce+'&sid={CHECKOUT_SESSION_ID}',
+      cancel_url:origin+'/_pay/done?nonce='+nonce+'&cancel=1',
+      'line_items[0][quantity]':'1',
+      'line_items[0][price_data][currency]':opts.currency,
+      'line_items[0][price_data][unit_amount]':String(opts.amount),
+      'line_items[0][price_data][product_data][name]':opts.label})
+    fetch('https://api.stripe.com/v1/checkout/sessions',{
+      method:'POST',
+      headers:{authorization:'Bearer '+_stripeKey,'content-type':'application/x-www-form-urlencoded'},
+      body})
+      .then(r=>r.json()).then(s=>{
+        if(!s.url){console.error('back.checkout: stripe',s);d(opts.onFail,sender);return}
+        _payPending.set(nonce,{sender,sid:s.id,onPaid:opts.onPaid,onFail:opts.onFail,app:_appState})
+        srv.publish('tab:'+tabId,JSON.stringify({_type:'_payRedirect',url:s.url}))})
+      .catch(e=>{console.error('back.checkout',e);d(opts.onFail,sender)})}"
+App = appConstructor
+app =
+  show : a -> App = ffi"a=>{
+    const ws=new WebSocket(location.origin.replace('http','ws')+'/ws')
+    ws.onmessage=a=>(a.data==='reload'&&location.reload())
+    document.body.innerHTML=`<div style='display:grid;min-height:100dvh;place-items:center;'><pre>${JSON.stringify(a,null,2)}</pre></div>`;}"
+  html : Html a -> App = a -> mini {init=0,update=m a -> m,view=b -> a}
+  mini : {init:model,update:model, action -> model,view:model -> Html action} -> App = a ->
+    front {init=a.init,update=a.update,view=a.view,cmds=m a -> cmd.none,subs=m -> sub.none}
+  front : {init:model,update:model, action -> model,view:model -> Html action,cmds:model, action -> Cmd action,subs:model -> Sub action} -> App =
+    ffi"./front.js"
+  fullstack : {front:{init:model,view:model -> Html action,update:model, action -> model,cmds:model, action -> Cmd action,subs:model -> Sub action},back:{init:db,update:Sender, db, actionBack -> db,cmds:Sender, db, actionBack -> Cmd actionBack,subs:db -> Sub actionBack,migrate:a -> db}} -> App = ffi""
+  multi : List {name:Text,app:App} -> App = ffi""
