@@ -1,0 +1,26 @@
+app.html
+  col [fullCenter, g 24, p 32]
+    - txt [fs 48, fw.bold] "Welcome, gabawann"
+    - txt [fs 18, o 0.7] "Your Baze workspace is live and synced."
+
+    - col [g 12, p 24, br 12, bg "#f4f4f4", maxw 640]
+      - txt [fs 16, fw.bold] "1. Open your codebase"
+      - txt [fs 14, o 0.7] "Edits to .baze files sync live to this page."
+      - row [g 8]
+        - node "a" [attr "href" "antigravity://file~/baze", p 12, br 8, bg "#000", fc "#fff", style "text-decoration" "none"] [htmlText "Open in Antigravity"]
+
+    - col [g 12, p 24, br 12, bg "#f4f4f4", maxw 640]
+      - txt [fs 16, fw.bold] "2. Install the Baze extension"
+      - txt [fs 14, o 0.7] "Get syntax highlighting for .baze files."
+      - row [g 8]
+        - node "a" [attr "href" "antigravity:extension/baze.baze", p 12, br 8, bg "#000", fc "#fff", style "text-decoration" "none"] [htmlText "Install extension"]
+
+    - col [g 12, p 24, br 12, bg "#f4f4f4", maxw 640]
+      - txt [fs 16, fw.bold] "3. Try the examples"
+      - txt [fs 14, o 0.7] "Open these to see each app variant. Copy what you like into main.baze."
+      - col [g 6]
+        - node "a" [attr "href" "antigravity://file~/baze/examples/mini.baze", p 10, br 6, bg "#fff", fc "#000", style "text-decoration" "none"] [htmlText "examples/mini.baze — counter"]
+        - node "a" [attr "href" "antigravity://file~/baze/examples/front.baze", p 10, br 6, bg "#fff", fc "#000", style "text-decoration" "none"] [htmlText "examples/front.baze — clock with subs"]
+        - node "a" [attr "href" "antigravity://file~/baze/examples/fullstack.baze", p 10, br 6, bg "#fff", fc "#000", style "text-decoration" "none"] [htmlText "examples/fullstack.baze — shared chat (front + back)"]
+
+    - txt [fs 14, o 0.5] "Edit main.baze and save to replace this welcome page."
