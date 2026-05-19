@@ -1,0 +1,15 @@
+-- A clock using app.front. Adds cmds and subs to app.mini.
+-- 'subs' subscribes to outside events (here, a 1-second timer).
+
+Action = tick Num | reset
+app.front
+  init = 0
+  update = m a -> a ?
+    tick _ -> m + 1
+    reset -> 0
+  view = m -> col [fullCenter, g 16]
+    - txt [fs 64, fw.bold] (toText m)
+    - txt [fs 14, o 0.6] "seconds since last reset"
+    - btn [] "Reset" reset
+  cmds = m a -> cmd.none
+  subs = m -> time.every 1000 tick
