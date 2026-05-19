@@ -1,0 +1,29 @@
+-- Shared chat using app.fullstack. State lives on the server,
+-- broadcast to all connected clients. Open in two tabs to test.
+
+Action = gotItems (List Text) | askAdd Text
+ActionBack = addItem Text | sendItems
+app.fullstack
+  front =
+    init = []
+    update = m a -> a ?
+      gotItems items -> items
+      _ -> m
+    view = m -> col [fullCenter, g 16, p 32]
+      - txt [fs 32, fw.bold] "Shared chat"
+      - txt [fs 14, o 0.6] "Open this page in two tabs — messages sync."
+      - form (d -> askAdd d.msg) [attrsRow]
+        - input [name "msg", placeholder "Type a message..."]
+        - submit [] "Send"
+      - col [g 4] (list.map m (t -> txt [p 8, br 6, bg "#f4f4f4"] t))
+    cmds = m a -> a ?
+      askAdd v -> front.sendToBack (addItem v)
+      _ -> cmd.none
+    subs = m -> sub.none
+  back =
+    init = []
+    update = sender db a -> a ?
+      addItem v -> list.append [v] db
+      _ -> db
+    cmds = sender db a -> back.broadcast (gotItems db)
+    subs = db -> back.onConnect sendItems
